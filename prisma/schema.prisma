@@ -1,0 +1,82 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String          @id @default(cuid())
+  name        String
+  email       String          @unique
+  password    String
+  color       String?         @default("#3b82f6")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  boards      Board[]         @relation("BoardOwner")
+  memberships BoardMember[]
+  snapshots   BoardSnapshot[]
+  messages    ChatMessage[]
+}
+
+model Board {
+  id          String          @id @default(cuid())
+  title       String
+  description String?         @default("")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  ownerId     String
+  owner       User            @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members     BoardMember[]
+  snapshots   BoardSnapshot[]
+  messages    ChatMessage[]
+}
+
+model BoardMember {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  role      String   @default("editor") // "owner" | "editor" | "viewer"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+}
+
+model BoardSnapshot {
+  id        String   @id @default(cuid())
+  boardId   String
+  snapshot  String   // Base64 encoded Yjs doc state / update
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  userName  String
+  userColor String   @default("#3b82f6")
+  content   String
+  createdAt DateTime @default(now())
+
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
